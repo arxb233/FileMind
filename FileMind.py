@@ -4,6 +4,8 @@ import socketserver
 import subprocess
 from urllib.parse import urlparse, parse_qs
 import json
+import webbrowser
+import datetime
 
 # ================== 1. 生成 Markmap 树 ==================
 def build_markmap_tree(root_path):
@@ -57,9 +59,25 @@ class APIServer(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"markdown": md}).encode("utf-8"))
             return
+        
+        # ---------- /api/info ----------
+        if parsed.path == "/api/info":
+            total_files = sum(len(files) for _, _, files in os.walk(self.root_folder))
+            total_folders = sum(len(dirs) for _, dirs, _ in os.walk(self.root_folder))
+            info = {
+                "path": self.root_folder,
+                "folders": total_folders,
+                "files": total_files,
+                "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(info).encode())
+            return
 
-        # ---------- 读取前端 index.html ----------
-        if parsed.path == "/" or parsed.path == "/index.html":
+        # ---------- 读取 index.html ----------
+        if parsed.path in ("/", "/index.html"):
             return super().do_GET()
 
         return super().do_GET()
@@ -70,16 +88,21 @@ class APIServer(http.server.SimpleHTTPRequestHandler):
             data = json.loads(self.rfile.read(length))
 
             path = data.get("path")
-            type_ = data.get("type")
+            type_ = data.get("type", "file")
 
             try:
+                # 转成 Windows 正确路径
+                win_path = os.path.abspath(path)
+
                 if os.name == "nt":
                     if type_ == "folder":
-                        subprocess.Popen(["explorer", path])
+                        # 必须使用 explorer + 绝对路径
+                        subprocess.Popen(["explorer", win_path])
                     else:
-                        os.startfile(path)
+                        os.startfile(win_path)
                 else:
                     subprocess.Popen(["open", path])
+
             except Exception as e:
                 print("打开失败:", e)
 
@@ -93,13 +116,11 @@ def start_server(root, port=8101):
     APIServer.root_folder = root
     with socketserver.TCPServer(("", port), APIServer) as httpd:
         print(f"✓ API & Web 服务启动：http://localhost:{port}")
+        webbrowser.open(f"http://localhost:{port}")
         httpd.serve_forever()
 
 
 if __name__ == "__main__":
-    root = input("请输入要生成思维导图的目录：").strip('"')
-    if not os.path.isdir(root):
-        print("输入错误")
-        exit()
-
+    root = os.getcwd()
+    print(f"当前目录：{root}")
     start_server(root)
