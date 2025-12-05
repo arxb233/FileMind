@@ -256,6 +256,21 @@
             });
         }
 
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            const { path, type } = target.dataset || {};
+
+            if (target.tagName === 'A' && path) {
+                e.preventDefault();
+                fetch('/api/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path, type })
+                });
+            }
+        });
+
+
         // ------------------ 初始化 ------------------
         async function init() {
             await loadTree();
