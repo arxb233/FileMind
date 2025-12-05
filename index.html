@@ -3,103 +3,237 @@
 <head>
 <meta charset="utf-8" />
 <title>FileMind – 文件思维导图</title>
+
+<!-- jsTree 样式 -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+<!-- jQuery -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<!-- jsTree JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+<!-- Markmap -->
 <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
+
 <style>
-html, body {height:100%;width:100%;  margin:0; display:flex; font-family:"Segoe UI", Tahoma, sans-serif; background:#f0f2f5;}
-#sidebar {width:250px; background:#f8f9fa; overflow:auto; padding:12px; border-right:1px solid #ddd;}
-#sidebar h3 {margin-top:0;}
-#sidebar ul {list-style:none; padding-left:0;}
-#sidebar ul li {margin:2px 0;}
-.folder {cursor:pointer; color:#276FF5;}
-.folder:hover {text-decoration:underline;}
-.main {flex:1; display:flex; flex-direction:column;}
-header {background:#276FF5; color:white; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
-.markmap {flex:1; display:flex; background:#fff; margin:0 12px 12px 12px; border-radius:6px; box-shadow:0 1px 6px rgba(0,0,0,0.1);}
-svg.markmap {width:100%; height:100%;}
-header h1 {margin:0; font-size:24px;}
-header p {margin:4px 0 0 0; font-size:14px; color:#d0e0ff;}
+html, body {
+    height: 100%;width: 100%;
+    margin: 0;
+    display: flex;
+    font-family: "Segoe UI", Tahoma, sans-serif;
+    background: white;
+}
+
+/* 左侧文件树 */
+#sidebar {
+    width: 280px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ddd;
+    overflow: hidden;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.05);
+}
+
+/* 左侧顶部标题栏 */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: linear-gradient(to right, #276FF5, #4D90FE);
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px 6px 0 0;
+}
+.sidebar-header .folder-icon {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+/* 树容器 */
+#file-tree {
+    padding: 8px 12px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* 右侧主区域 */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* 顶部 header */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: linear-gradient(to right, #276FF5, #4D90FE);
+    color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    margin-left: 5px;
+    flex-shrink: 0;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+
+/* 左侧信息 */
+.header-left {
+    flex: 1;
+    font-size: 14px;
+    color: #d0e0ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 中间标题 */
+.header-center {
+    flex: 1;
+    text-align: center;
+}
+.header-center h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+/* 右侧 GitHub */
+.header-right {
+    flex: 1;
+    text-align: right;
+}
+.header-right img {
+    width: 24px;
+    height: 24px;
+    filter: invert(1); /* 白色图标 */
+    vertical-align: middle;
+}
+.header-right a {
+    text-decoration: none;
+}
+
+/* Markmap */
+.markmap {
+    flex: 1;
+    display: flex;
+    background: #fff;
+    margin: 0;
+    margin-left: 5px;
+    border-radius: 6px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+svg.markmap {
+    width: 100%;
+    height: 100%;
+}
 </style>
 </head>
-<body onload="init()">
 
+<body>
+
+<!-- 左侧文件树 -->
 <div id="sidebar">
-<h3>文件浏览器</h3>
-<ul id="drive-list"></ul>
+    <div class="sidebar-header">
+        <span class="folder-icon">📂</span>
+        <span class="sidebar-title">文件浏览器</span>
+    </div>
+    <div id="file-tree"></div>
 </div>
 
+<!-- 右侧主区域 -->
 <div class="main">
-<header>
-<h1>FileMind – 文件思维导图</h1>
-<p id="info-text">加载中……</p>
-</header>
-<div class="markmap">
-<script id="tree-md" type="text/template"></script>
-</div>
+    <header>
+        <div class="header-left" id="header-left">
+            <span id="info-text">加载中……</span>
+        </div>
+        <div class="header-center">
+            <h1>FileMind – 文件思维导图</h1>
+        </div>
+        <div class="header-right">
+            <a href="https://github.com/arxb233/FileMind" target="_blank" title="GitHub">
+                <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub" />
+            </a>
+        </div>
+    </header>
+    <div class="markmap">
+        <script id="tree-md" type="text/template"></script>
+    </div>
 </div>
 
 <script>
+// ------------------ 加载 Markmap 树 ------------------
 async function loadTree() {
     const res = await fetch("/api/tree");
     const data = await res.json();
     document.querySelector("#tree-md").textContent = data.markdown;
 }
+
+// ------------------ 加载目录统计 ------------------
 async function loadInfo() {
     const res = await fetch("/api/info");
     const info = await res.json();
-    document.querySelector("#info-text").textContent =
+    document.getElementById("info-text").textContent =
         `路径: ${info.path} | 文件夹: ${info.folders} | 文件: ${info.files} | 生成时间: ${info.generated}`;
 }
 
+// ------------------ 加载盘符 / 根节点 ------------------
 async function loadDrives() {
     const res = await fetch("/api/drives");
     const drives = await res.json();
-    const ul = document.getElementById("drive-list");
-    ul.innerHTML = "";
-    drives.forEach(drive => {
-        const li = document.createElement("li");
-        li.innerHTML = `<span class="folder" data-path="${drive}">${drive}</span><ul class="nested" style="list-style:none; padding-left:16px; display:none;"></ul>`;
-        ul.appendChild(li);
+
+    const treeData = drives.map(drive => ({
+        id: drive,
+        text: drive,
+        children: true
+    }));
+
+    $('#file-tree').jstree({
+        'core': {
+            'data': function(node, cb) {
+                if(node.id === "#") {
+                    cb(treeData);
+                } else {
+                    fetch(`/api/list?path=${encodeURIComponent(node.id)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            const children = [];
+
+                            data.folders.forEach(f => {
+                                const folderPath = node.id.endsWith("\\") ? node.id + f : node.id + "\\" + f;
+                                children.push({ id: folderPath, text: f, children: true });
+                            });
+
+                            data.files.forEach(f => {
+                                const filePath = node.id.endsWith("\\") ? node.id + f : node.id + "\\" + f;
+                                children.push({ id: filePath, text: f, children: false, icon: "jstree-file" });
+                            });
+
+                            cb(children);
+                        })
+                        .catch(err => { console.error("加载子节点失败:", err); cb([]); });
+                }
+            },
+            'check_callback': true,
+            'themes': { 'dots': true, 'icons': true }
+        }
     });
 }
 
-// 点击文件夹展开
-document.addEventListener("click", async e => {
-    if(e.target.classList.contains("folder")) {
-        const path = e.target.dataset.path;
-        const ul = e.target.nextElementSibling;
-        if(ul.childElementCount===0){
-            const res = await fetch(`/api/list?path=${encodeURIComponent(path)}`);
-            const data = await res.json();
-            data.folders.forEach(f=>{
-                const li = document.createElement("li");
-                const folderPath = path.endsWith("\\")? path+f : path+"\\"+f;
-                li.innerHTML = `<span class="folder" data-path="${folderPath}">${f}</span><ul class="nested" style="list-style:none; padding-left:16px; display:none;"></ul>`;
-                ul.appendChild(li);
-            });
-            data.files.forEach(f=>{
-                const li = document.createElement("li");
-                const filePath = path.endsWith("\\")? path+f : path+"\\"+f;
-                li.innerHTML = `<a href="#" data-path="${filePath}" data-type="file">${f}</a>`;
-                ul.appendChild(li);
-            });
-        }
-        ul.style.display = ul.style.display==="none"?"block":"none";
-    } else if(e.target.tagName==="A" && e.target.dataset.path){
-        // 点击文件打开
-        e.preventDefault();
-        fetch("/api/open", {
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({path:e.target.dataset.path,type:e.target.dataset.type})
-        });
-    }
-});
-
-async function init(){
+// ------------------ 初始化 ------------------
+async function init() {
     await loadTree();
     await loadInfo();
     await loadDrives();
 }
+
+init();
 </script>
 
 </body>
