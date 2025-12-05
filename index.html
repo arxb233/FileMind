@@ -203,10 +203,10 @@
     <div class="main">
         <header>
             <div class="header-left" id="header-left">
-                <span id="info-text">加载中……</span>
+                <span id="info-text">请在左侧文件夹右键菜单点击加载思维导图</span>
             </div>
             <div class="header-center">
-                <h1>FileMind – 文件思维导图</h1>
+                <h1>FileMind – 文件思维导图 - baris</h1>
             </div>
             <div class="header-right">
                 <a href="https://github.com/arxb233/FileMind" target="_blank" title="GitHub">
@@ -215,6 +215,7 @@
             </div>
         </header>
         <div class="markmap" id="markmap-tree-md">
+            <span id="info-text">请在左侧文件夹右键菜单点击加载思维导图</span>
             <script id="tree-md" type="text/template"></script>
         </div>
     </div>
@@ -356,9 +357,8 @@
         });
 
         async function init() {
-            await loadTree();
-            await loadInfo();
             await loadDrives();
+            await loadTree();
         }
 
         init();
