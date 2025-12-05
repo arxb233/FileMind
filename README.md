@@ -34,8 +34,7 @@ FileMind 是一款基于 **Flask + HTML/JS + Markmap** 的本地文件浏览与�
 - 右键文件或文件夹显示操作菜单。
 - 支持菜单项：
   - 打开
-  - 重命名
-  - 删除
+  - 加载思维导图
 - 可通过全局变量获取右键点击节点的 `id`，便于外部调用。
 - 支持动态扩展和修改菜单项。
 
@@ -72,13 +71,13 @@ FileMind 是一款基于 **Flask + HTML/JS + Markmap** 的本地文件浏览与�
    cd FileMind
    ```
 2.安装依赖：
-  ```bash
-  pip install flask
+   ```bash
+   pip install flask
    ```
 3.启动服务：
- ```bash
-  python server.py
-  ```
+   ```bash
+    python server.py
+   ```
 打开浏览器访问：
 http://localhost:8101
 默认显示指定根目录，可通过左侧文件树浏览和刷新思维导图。
