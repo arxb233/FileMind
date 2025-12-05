@@ -54,15 +54,17 @@ ROOT_FOLDER = os.getcwd()
 
 @app.route("/api/tree", methods=["GET"])
 def api_tree():
-    md = build_markmap_tree(ROOT_FOLDER)
+    path = request.args.get("path", ROOT_FOLDER)
+    md = build_markmap_tree(path)
     return jsonify({"markdown": md})
 
 @app.route("/api/info", methods=["GET"])
 def api_info():
-    total_files = sum(len(files) for _, _, files in os.walk(ROOT_FOLDER))
-    total_folders = sum(len(dirs) for _, dirs, _ in os.walk(ROOT_FOLDER))
+    path = request.args.get("path", ROOT_FOLDER)
+    total_files = sum(len(files) for _, _, files in os.walk(path))
+    total_folders = sum(len(dirs) for _, dirs, _ in os.walk(path))
     info = {
-        "path": ROOT_FOLDER,
+        "path": path,
         "folders": total_folders,
         "files": total_files,
         "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

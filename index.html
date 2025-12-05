@@ -166,7 +166,7 @@
         #context-menu {
             position: absolute;
             display: none;
-            background: #a5c9f8;
+            background: #c5e6fe;
             border: 1px solid #ccc;
             border-radius: 4px;
             color: black;
@@ -183,7 +183,7 @@
 
         #context-menu div:hover {
             background: #1a73e8;
-              color: white;
+            color: white;
         }
     </style>
 </head>
@@ -214,7 +214,7 @@
                 </a>
             </div>
         </header>
-        <div class="markmap">
+        <div class="markmap" id="markmap-tree-md">
             <script id="tree-md" type="text/template"></script>
         </div>
     </div>
@@ -226,7 +226,7 @@
         const contextMenu = document.getElementById("context-menu");
 
         const menuItems = [
-            { label: "加载思维导图", action: (path) => openPath(path) },
+            { label: "加载思维导图", action: (path) => LoadMind(path) },
             { label: "打开", action: (path) => openPath(path) },
         ];
 
@@ -249,14 +249,31 @@
 
         document.addEventListener("click", hideContextMenu);
 
-        async function loadTree() {
-            const res = await fetch("/api/tree");
+        async function loadTree(path = null) {
+            const url = path ? `/api/tree?path=${encodeURIComponent(path)}` : "/api/tree";
+            const res = await fetch(url);
             const data = await res.json();
-            document.querySelector("#tree-md").textContent = data.markdown;
+
+            const container = document.getElementById("markmap-tree-md");
+            if (!container) return;
+
+            // 直接覆盖整个容器内容，autoloader 会自动重新渲染
+            container.innerHTML = `
+                <script type="text/template">
+                    ${data.markdown.replace(/<\/script>/gi, "</scr\\ipt>")} <!-- 防止脚本注入 -->
+                <\/script>
+            `;
+
+            // autoloader 已经监听 DOM 变化，大多数情况下不需要手动调用
+            // 但保险起见可以手动触发一次
+            window.markmap?.autoLoader?.renderAll?.();
         }
 
-        async function loadInfo() {
-            const res = await fetch("/api/info");
+
+        // 加载目录统计
+        async function loadInfo(path = null) {
+            const url = path ? `/api/info?path=${encodeURIComponent(path)}` : "/api/info";
+            const res = await fetch(url);
             const info = await res.json();
             document.getElementById("info-text").textContent =
                 `路径: ${info.path} | 文件夹: ${info.folders} | 文件: ${info.files} | 生成时间: ${info.generated}`;
@@ -319,6 +336,11 @@
                 body: JSON.stringify({ path })
             });
         }
+        function LoadMind(path) {
+            loadTree(path);
+            loadInfo(path);
+        }
+
         document.addEventListener('click', (e) => {
             const target = e.target;
             const { path, type } = target.dataset || {};
