@@ -86,7 +86,6 @@
             border-top-right-radius: 8px;
         }
 
-
         /* 左侧信息 */
         .header-left {
             flex: 1;
@@ -118,7 +117,6 @@
             width: 24px;
             height: 24px;
             filter: invert(1);
-            /* 白色图标 */
             vertical-align: middle;
         }
 
@@ -163,6 +161,28 @@
         a:hover {
             background: rgba(26, 115, 232, 0.1);
         }
+
+        /* 自定义右键菜单 */
+        #context-menu {
+            position: absolute;
+            display: none;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            z-index: 10000;
+            min-width: 120px;
+            font-size: 13px;
+        }
+
+        #context-menu div {
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+
+        #context-menu div:hover {
+            background: #f0f0f0;
+        }
     </style>
 </head>
 
@@ -197,15 +217,41 @@
         </div>
     </div>
 
+    <!-- 自定义右键菜单 -->
+    <div id="context-menu"></div>
+
     <script>
-        // ------------------ 加载 Markmap 树 ------------------
+        const contextMenu = document.getElementById("context-menu");
+
+        const menuItems = [
+            { label: "加载思维导图", action: (path) => openPath(path) },
+        ];
+
+        function showContextMenu(x, y, path) {
+            contextMenu.innerHTML = "";
+            menuItems.forEach(item => {
+                const div = document.createElement("div");
+                div.textContent = item.label;
+                div.onclick = () => { item.action(path); hideContextMenu(); };
+                contextMenu.appendChild(div);
+            });
+            contextMenu.style.left = x + "px";
+            contextMenu.style.top = y + "px";
+            contextMenu.style.display = "block";
+        }
+
+        function hideContextMenu() {
+            contextMenu.style.display = "none";
+        }
+
+        document.addEventListener("click", hideContextMenu);
+
         async function loadTree() {
             const res = await fetch("/api/tree");
             const data = await res.json();
             document.querySelector("#tree-md").textContent = data.markdown;
         }
 
-        // ------------------ 加载目录统计 ------------------
         async function loadInfo() {
             const res = await fetch("/api/info");
             const info = await res.json();
@@ -213,7 +259,6 @@
                 `路径: ${info.path} | 文件夹: ${info.folders} | 文件: ${info.files} | 生成时间: ${info.generated}`;
         }
 
-        // ------------------ 加载盘符 / 根节点 ------------------
         async function loadDrives() {
             const res = await fetch("/api/drives");
             const drives = await res.json();
@@ -254,8 +299,23 @@
                     'themes': { 'dots': true, 'icons': true }
                 }
             });
+
+            // jsTree 右键菜单绑定
+            $('#file-tree').on("contextmenu", ".jstree-anchor", function(e) {
+                e.preventDefault();
+                const node = $.jstree.reference(this).get_node(this);
+                showContextMenu(e.pageX, e.pageY, node.id);
+            });
         }
 
+        // 点击文件/文件夹打开
+        function openPath(path) {
+            fetch('/api/open', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path })
+            });
+        }
         document.addEventListener('click', (e) => {
             const target = e.target;
             const { path, type } = target.dataset || {};
@@ -270,8 +330,6 @@
             }
         });
 
-
-        // ------------------ 初始化 ------------------
         async function init() {
             await loadTree();
             await loadInfo();
@@ -280,7 +338,6 @@
 
         init();
     </script>
-
 </body>
 
 </html>
