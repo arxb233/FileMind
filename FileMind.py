@@ -1,23 +1,27 @@
 import os
-import http.server
-import socketserver
-import subprocess
-from urllib.parse import urlparse, parse_qs
 import json
-import webbrowser
 import datetime
-import sys, os
+import subprocess
+import webbrowser
+import sys
+import logging
+from flask import Flask, request, jsonify, send_file
 
+app = Flask(__name__)
+# ------------------- 隐藏 Flask/werkzeug 日志 -------------------
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)  # 只显示错误，忽略 info/warning
+
+# ------------------- 工具函数 -------------------
 def get_resource_path(rel_path):
     try:
         # PyInstaller 打包后，临时路径
         base = sys._MEIPASS
     except Exception:
-        # 开发环境
         base = os.path.abspath(".")
     return os.path.join(base, rel_path)
 
-# ================== 1. 生成 Markmap 树 ==================
+# ------------------- 生成 Markmap 树 -------------------
 def build_markmap_tree(root_path):
     root_name = os.path.basename(root_path) or root_path
     lines = [f"- {root_name}"]
@@ -35,109 +39,71 @@ def build_markmap_tree(root_path):
         for item in items:
             if item.startswith('.'):
                 continue
-
             item_path = os.path.join(path, item)
             abs_path = os.path.abspath(item_path).replace("\\", "/")
             display = item.replace("\t", "    ").strip()
-
             if os.path.isdir(item_path):
-                lines.append(
-                    f"{indent}- <a href='#' data-path='{abs_path}' data-type='folder'>{display}/</a>"
-                )
+                lines.append(f"{indent}- <a href='#' data-path='{abs_path}' data-type='folder'>{display}/</a>")
                 walk(item_path, level + 1)
             else:
-                lines.append(
-                    f"{indent}- <a href='#' data-path='{abs_path}' data-type='file'>{display}</a>"
-                )
+                lines.append(f"{indent}- <a href='#' data-path='{abs_path}' data-type='file'>{display}</a>")
 
     walk(root_path, 1)
     return "\n".join(lines)
 
+# ------------------- API -------------------
+ROOT_FOLDER = os.getcwd()
 
-# ================== 2. HTTP API ==================
-class APIServer(http.server.SimpleHTTPRequestHandler):
-    root_folder = ""
+@app.route("/api/tree", methods=["GET"])
+def api_tree():
+    md = build_markmap_tree(ROOT_FOLDER)
+    return jsonify({"markdown": md})
 
-    def do_GET(self):
-        parsed = urlparse(self.path)
+@app.route("/api/info", methods=["GET"])
+def api_info():
+    total_files = sum(len(files) for _, _, files in os.walk(ROOT_FOLDER))
+    total_folders = sum(len(dirs) for _, dirs, _ in os.walk(ROOT_FOLDER))
+    info = {
+        "path": ROOT_FOLDER,
+        "folders": total_folders,
+        "files": total_files,
+        "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    return jsonify(info)
 
-        # ---------- /api/tree ----------
-        if parsed.path == "/api/tree":
-            md = build_markmap_tree(self.root_folder)
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"markdown": md}).encode("utf-8"))
-            return
-        
-        # ---------- /api/info ----------
-        if parsed.path == "/api/info":
-            total_files = sum(len(files) for _, _, files in os.walk(self.root_folder))
-            total_folders = sum(len(dirs) for _, dirs, _ in os.walk(self.root_folder))
-            info = {
-                "path": self.root_folder,
-                "folders": total_folders,
-                "files": total_files,
-                "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(info).encode())
-            return
+@app.route("/api/open", methods=["POST"])
+def api_open():
+    data = request.json
+    path = data.get("path")
+    type_ = data.get("type", "file")
+    try:
+        win_path = os.path.abspath(path)
+        if os.name == "nt":
+            if type_ == "folder":
+                subprocess.Popen(["explorer", win_path])
+            else:
+                os.startfile(win_path)
+        else:
+            subprocess.Popen(["open", path])
+    except Exception as e:
+        print("打开失败:", e)
+    return "", 200
 
-        # ---------- 读取 index.html ----------
-        if parsed.path in ("/", "/index.html"):
-            path = get_resource_path("index.html")
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.end_headers()
-            with open(path, "rb") as f:
-                self.wfile.write(f.read())
-            return
+@app.route("/", methods=["GET"])
+@app.route("/index.html", methods=["GET"])
+def index():
+    path = get_resource_path("index.html")
+    return send_file(path)
 
-
-        return super().do_GET()
-
-    def do_POST(self):
-        if self.path == "/api/open":
-            length = int(self.headers.get("Content-Length", 0))
-            data = json.loads(self.rfile.read(length))
-
-            path = data.get("path")
-            type_ = data.get("type", "file")
-
-            try:
-                # 转成 Windows 正确路径
-                win_path = os.path.abspath(path)
-
-                if os.name == "nt":
-                    if type_ == "folder":
-                        # 必须使用 explorer + 绝对路径
-                        subprocess.Popen(["explorer", win_path])
-                    else:
-                        os.startfile(win_path)
-                else:
-                    subprocess.Popen(["open", path])
-
-            except Exception as e:
-                print("打开失败:", e)
-
-            self.send_response(200)
-            self.end_headers()
-            return
-
-
-# ================== 3. 启动服务 ==================
-def start_server(root, port=8101):
-    APIServer.root_folder = root
-    with socketserver.TCPServer(("", port), APIServer) as httpd:
-        print(f"✓ API & Web 服务启动：http://localhost:{port}")
-        webbrowser.open(f"http://localhost:{port}")
-        httpd.serve_forever()
-
+# ------------------- 启动 -------------------
+def start_server(root=ROOT_FOLDER, port=8101):
+    global ROOT_FOLDER
+    ROOT_FOLDER = root
+    url = f"http://localhost:{port}"
+    print(f"✓ API & Web 服务启动：{url}")
+    webbrowser.open(url)
+    app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    root = os.getcwd()
-    print(f"当前目录：{root}")
-    start_server(root)
+    print(f"当前目录：{ROOT_FOLDER}")
+    start_server()
