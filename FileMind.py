@@ -6,6 +6,16 @@ from urllib.parse import urlparse, parse_qs
 import json
 import webbrowser
 import datetime
+import sys, os
+
+def get_resource_path(rel_path):
+    try:
+        # PyInstaller 打包后，临时路径
+        base = sys._MEIPASS
+    except Exception:
+        # 开发环境
+        base = os.path.abspath(".")
+    return os.path.join(base, rel_path)
 
 # ================== 1. 生成 Markmap 树 ==================
 def build_markmap_tree(root_path):
@@ -78,7 +88,14 @@ class APIServer(http.server.SimpleHTTPRequestHandler):
 
         # ---------- 读取 index.html ----------
         if parsed.path in ("/", "/index.html"):
-            return super().do_GET()
+            path = get_resource_path("index.html")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            with open(path, "rb") as f:
+                self.wfile.write(f.read())
+            return
+
 
         return super().do_GET()
 
