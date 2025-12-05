@@ -166,10 +166,10 @@
         #context-menu {
             position: absolute;
             display: none;
-            background: #1a73e8;
+            background: #a5c9f8;
             border: 1px solid #ccc;
             border-radius: 4px;
-            color: white;
+            color: black;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
             z-index: 10000;
             min-width: 120px;
@@ -183,6 +183,7 @@
 
         #context-menu div:hover {
             background: #1a73e8;
+              color: white;
         }
     </style>
 </head>
@@ -226,6 +227,7 @@
 
         const menuItems = [
             { label: "加载思维导图", action: (path) => openPath(path) },
+            { label: "打开", action: (path) => openPath(path) },
         ];
 
         function showContextMenu(x, y, path) {
@@ -302,7 +304,7 @@
             });
 
             // jsTree 右键菜单绑定
-            $('#file-tree').on("contextmenu", ".jstree-anchor", function(e) {
+            $('#file-tree').on("contextmenu", ".jstree-anchor", function (e) {
                 e.preventDefault();
                 const node = $.jstree.reference(this).get_node(this);
                 showContextMenu(e.pageX, e.pageY, node.id);
