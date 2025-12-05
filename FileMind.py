@@ -1,27 +1,26 @@
 import os
+import sys
 import json
 import datetime
 import subprocess
 import webbrowser
-import sys
 import logging
 from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 # ------------------- 隐藏 Flask/werkzeug 日志 -------------------
 log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)  # 只显示错误，忽略 info/warning
+log.setLevel(logging.ERROR)  # 只显示错误
 
 # ------------------- 工具函数 -------------------
 def get_resource_path(rel_path):
     try:
-        # PyInstaller 打包后，临时路径
-        base = sys._MEIPASS
+        base = sys._MEIPASS  # PyInstaller 打包后临时路径
     except Exception:
         base = os.path.abspath(".")
     return os.path.join(base, rel_path)
 
-# ------------------- 生成 Markmap 树 -------------------
+# ------------------- Markmap 树生成 -------------------
 def build_markmap_tree(root_path):
     root_name = os.path.basename(root_path) or root_path
     lines = [f"- {root_name}"]
@@ -35,7 +34,6 @@ def build_markmap_tree(root_path):
         except PermissionError:
             lines.append(f"{indent}- [权限拒绝]")
             return
-
         for item in items:
             if item.startswith('.'):
                 continue
@@ -89,6 +87,22 @@ def api_open():
         print("打开失败:", e)
     return "", 200
 
+# ------------------- 盘符与目录 API -------------------
+@app.route("/api/drives", methods=["GET"])
+def api_drives():
+    drives = [f"{d}:\\" for d in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(f"{d}:\\")]
+    return jsonify(drives)
+
+@app.route("/api/list", methods=["GET"])
+def api_list():
+    path = request.args.get("path")
+    if not path or not os.path.exists(path):
+        return jsonify({"folders": [], "files": []})
+    folders = [f for f in os.listdir(path) if os.path.isdir(os.path.join(path, f)) and not f.startswith(".")]
+    files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and not f.startswith(".")]
+    return jsonify({"folders": folders, "files": files})
+
+# ------------------- 提供前端 -------------------
 @app.route("/", methods=["GET"])
 @app.route("/index.html", methods=["GET"])
 def index():

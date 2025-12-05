@@ -1,110 +1,106 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="utf-8" />
-    <title>FileMind – 文件思维导图</title>
-
-    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
-
-    <style>
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            font-family: "Segoe UI", Tahoma, sans-serif;
-            background: #f0f2f5;
-        }
-
-        header {
-            background: #276FF5;
-            color: white;
-            padding: 16px 24px;
-            margin-bottom: 12px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        .markmap {
-            flex: 1;
-            display: flex;
-            background: #fff;
-            margin: 0 12px 12px 12px;
-            border-radius: 6px;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        svg.markmap {
-            width: 100%;
-            height: 100%;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-        }
-
-        header p {
-            margin: 4px 0 0 0;
-            font-size: 14px;
-            color: #d0e0ff;
-        }
-    </style>
-
-    <script>
-        // --------------- 点击打开文件/文件夹 ---------------
-        document.addEventListener("click", (e) => {
-            if (e.target.tagName === "A" && e.target.dataset.path) {
-                e.preventDefault();
-                fetch("/api/open", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        path: e.target.dataset.path,
-                        type: e.target.dataset.type,
-                    }),
-                });
-            }
-        });
-
-        // --------------- 加载思维导图树 ----------------
-        async function loadTree() {
-            const res = await fetch("/api/tree");
-            const data = await res.json();
-            document.querySelector("#tree-md").textContent = data.markdown;
-        }
-
-        // --------------- 加载目录统计信息 ----------------
-        async function loadInfo() {
-            const res = await fetch("/api/info");
-            const info = await res.json();
-
-            document.querySelector("#info-text").textContent =
-                `路径: ${info.path} | 文件夹: ${info.folders} | 文件: ${info.files} | 生成时间: ${info.generated}`;
-        }
-
-        // 页面加载完毕后执行
-        async function init() {
-            await loadTree();
-            await loadInfo();
-        }
-    </script>
-
+<meta charset="utf-8" />
+<title>FileMind – 文件思维导图</title>
+<script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
+<style>
+html, body {height:100%;width:100%;  margin:0; display:flex; font-family:"Segoe UI", Tahoma, sans-serif; background:#f0f2f5;}
+#sidebar {width:250px; background:#f8f9fa; overflow:auto; padding:12px; border-right:1px solid #ddd;}
+#sidebar h3 {margin-top:0;}
+#sidebar ul {list-style:none; padding-left:0;}
+#sidebar ul li {margin:2px 0;}
+.folder {cursor:pointer; color:#276FF5;}
+.folder:hover {text-decoration:underline;}
+.main {flex:1; display:flex; flex-direction:column;}
+header {background:#276FF5; color:white; padding:16px 24px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.2);}
+.markmap {flex:1; display:flex; background:#fff; margin:0 12px 12px 12px; border-radius:6px; box-shadow:0 1px 6px rgba(0,0,0,0.1);}
+svg.markmap {width:100%; height:100%;}
+header h1 {margin:0; font-size:24px;}
+header p {margin:4px 0 0 0; font-size:14px; color:#d0e0ff;}
+</style>
 </head>
-
 <body onload="init()">
 
-    <header>
-        <h1>FileMind – 文件思维导图</h1>
-        <p id="info-text">加载中……</p>
-    </header>
+<div id="sidebar">
+<h3>文件浏览器</h3>
+<ul id="drive-list"></ul>
+</div>
 
-    <div class="markmap">
-        <script id="tree-md" type="text/template"></script>
-    </div>
+<div class="main">
+<header>
+<h1>FileMind – 文件思维导图</h1>
+<p id="info-text">加载中……</p>
+</header>
+<div class="markmap">
+<script id="tree-md" type="text/template"></script>
+</div>
+</div>
+
+<script>
+async function loadTree() {
+    const res = await fetch("/api/tree");
+    const data = await res.json();
+    document.querySelector("#tree-md").textContent = data.markdown;
+}
+async function loadInfo() {
+    const res = await fetch("/api/info");
+    const info = await res.json();
+    document.querySelector("#info-text").textContent =
+        `路径: ${info.path} | 文件夹: ${info.folders} | 文件: ${info.files} | 生成时间: ${info.generated}`;
+}
+
+async function loadDrives() {
+    const res = await fetch("/api/drives");
+    const drives = await res.json();
+    const ul = document.getElementById("drive-list");
+    ul.innerHTML = "";
+    drives.forEach(drive => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="folder" data-path="${drive}">${drive}</span><ul class="nested" style="list-style:none; padding-left:16px; display:none;"></ul>`;
+        ul.appendChild(li);
+    });
+}
+
+// 点击文件夹展开
+document.addEventListener("click", async e => {
+    if(e.target.classList.contains("folder")) {
+        const path = e.target.dataset.path;
+        const ul = e.target.nextElementSibling;
+        if(ul.childElementCount===0){
+            const res = await fetch(`/api/list?path=${encodeURIComponent(path)}`);
+            const data = await res.json();
+            data.folders.forEach(f=>{
+                const li = document.createElement("li");
+                const folderPath = path.endsWith("\\")? path+f : path+"\\"+f;
+                li.innerHTML = `<span class="folder" data-path="${folderPath}">${f}</span><ul class="nested" style="list-style:none; padding-left:16px; display:none;"></ul>`;
+                ul.appendChild(li);
+            });
+            data.files.forEach(f=>{
+                const li = document.createElement("li");
+                const filePath = path.endsWith("\\")? path+f : path+"\\"+f;
+                li.innerHTML = `<a href="#" data-path="${filePath}" data-type="file">${f}</a>`;
+                ul.appendChild(li);
+            });
+        }
+        ul.style.display = ul.style.display==="none"?"block":"none";
+    } else if(e.target.tagName==="A" && e.target.dataset.path){
+        // 点击文件打开
+        e.preventDefault();
+        fetch("/api/open", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({path:e.target.dataset.path,type:e.target.dataset.type})
+        });
+    }
+});
+
+async function init(){
+    await loadTree();
+    await loadInfo();
+    await loadDrives();
+}
+</script>
 
 </body>
-
 </html>
