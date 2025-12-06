@@ -11,11 +11,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - ubuntu-latest
-          - macos-latest-small    # macOS Intel x86_64
-          - macos-latest-large    # macOS ARM64 M 芯片
+        include:
+          - os: windows-latest
+            arch: x86_64
+
+          - os: ubuntu-latest
+            arch: x86_64
+
+          - os: macos-13     # Intel Mac
+            arch: x86_64
+
+          - os: macos-14     # ARM Mac (M1/M2/M3)
+            arch: arm64
 
     runs-on: ${{ matrix.os }}
 
@@ -23,10 +30,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- 统一方式获取 VERSION ----
+      # ---- 提取版本号（Bash 通用） ----
       - name: Extract Version
         shell: bash
-        id: get_version
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             VERSION="${GITHUB_REF#refs/tags/}"
@@ -35,13 +41,13 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      # ---- Install Python ----
+      # ---- 安装 Python ----
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # ---- Install dependencies ----
+      # ---- 安装依赖 ----
       - name: Install dependencies
         shell: bash
         run: |
@@ -49,7 +55,7 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller
 
-      # ---- Build executables ----
+      # ---- 构建 ----
       - name: Build app
         shell: bash
         run: |
@@ -57,13 +63,15 @@ jobs:
 
           if [[ "$OS" == "Windows" ]]; then
             pyinstaller --onefile --add-data "web;web" --icon=icon.ico api/FileMind.py
+
           elif [[ "$OS" == "Linux" ]]; then
             pyinstaller --onefile --add-data "web:web" api/FileMind.py
+
           elif [[ "$OS" == "macOS" ]]; then
             pyinstaller --onefile --add-data "web:web" --icon=icon.icns api/FileMind.py
           fi
 
-      # ---- Rename output ----
+      # ---- 重命名产物 ----
       - name: Rename output with version
         shell: bash
         run: |
@@ -73,17 +81,17 @@ jobs:
             ext=""
             [[ "$base" == *.exe ]] && ext=".exe"
 
-            mv "$f" "output/FileMind-${{ runner.os }}-${{ runner.arch }}-${VERSION}${ext}"
+            mv "$f" "output/FileMind-${{ matrix.os }}-${{ matrix.arch }}-${VERSION}${ext}"
           done
 
-      # ---- Upload artifacts ----
+      # ---- 上传 artifact ----
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FileMind-${{ runner.os }}-${{ runner.arch }}-${{ env.VERSION }}
+          name: FileMind-${{ matrix.os }}-${{ matrix.arch }}-${{ env.VERSION }}
           path: output/*
 
-  # ---- 发布 Release 并上传所有构建文件 ----
+  # ---- 创建 Release 并上传所有平台产物 ----
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -94,7 +102,7 @@ jobs:
         with:
           path: release-files
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
