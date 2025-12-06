@@ -1,0 +1,72 @@
+name: Build FileMind
+
+on:
+  push:
+    tags:
+      - "v*"         # 推送 tag 自动发布版本
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # 修正 PyInstaller 数据路径分隔符（Windows = ";"，Linux/Mac = ":"）
+      - name: Set data flag (platform-aware)
+        id: data_flag
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "value=web;web" >> $GITHUB_OUTPUT
+          else
+            echo "value=web:web" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --add-data "${{ steps.data_flag.outputs.value }}" \
+                      --icon=icon.ico api/FileMind.py
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMind-${{ matrix.os }}
+          path: dist/*
+
+  # ------- 可选：自动创建 Release 并上传构建产物 --------
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')   # 只有 tag 才会发布
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release_files
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_files/**/* 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
