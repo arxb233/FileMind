@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <title>FileMind – 文件思维导图</title>
+    <!-- jsTree 样式 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/themes/default/style.min.css" />
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- jsTree JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.12/jstree.min.js"></script>
+    <!-- Markmap -->
+    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@0.18"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- 左侧文件树 -->
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <span class="folder-icon">📂</span>
+            <span class="sidebar-title">文件浏览器</span>
+        </div>
+        <div id="file-tree"></div>
+    </div>
+    <!-- 右侧主区域 -->
+    <div class="main">
+        <header>
+            <div class="header-left" id="header-left">
+                <span id="info-text">请在左侧文件夹右键菜单点击加载思维导图</span>
+            </div>
+            <div class="header-center">
+                <h1>FileMind – 文件思维导图 - baris</h1>
+            </div>
+            <div class="header-right">
+                <a href="https://github.com/arxb233/FileMind" target="_blank" title="GitHub">
+                    <img src="https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/github.svg" alt="GitHub" />
+                </a>
+            </div>
+        </header>
+        <div class="markmap" id="markmap-tree-md">
+            <span id="info-text">请在左侧文件夹右键菜单点击加载思维导图</span>
+            <script id="tree-md" type="text/template"></script>
+        </div>
+    </div>
+    <div id="context-menu"></div>
+   <script src="js/script.js"></script>
+</body>
+
+</html>

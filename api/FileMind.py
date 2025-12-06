@@ -109,11 +109,18 @@ def api_list():
     return jsonify({"folders": folders, "files": files})
 
 # ------------------- 提供前端 -------------------
-@app.route("/", methods=["GET"])
-@app.route("/index.html", methods=["GET"])
-def index():
-    path = get_resource_path("index.html")
-    return send_file(path)
+def res(path):
+    base = sys._MEIPASS if getattr(sys, 'frozen', False) else os.path.dirname(__file__) + "/.."
+    return os.path.join(base, path)
+@app.route("/")
+@app.route("/<path:p>")
+def static_files(p="index.html"):
+    file_path = res(f"web/{p}")
+    if os.path.isfile(file_path):
+        return send_file(file_path)
+    else:
+        # 任何不存在的静态文件都返回 index.html（支持前端路由）
+        return send_file(res("web/index.html"))
 
 # ------------------- 启动 -------------------
 def start_server(root=ROOT_FOLDER, port=8101):
