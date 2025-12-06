@@ -8,55 +8,63 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest-small    # macOS Intel x86_64
+          - macos-latest-large    # macOS ARM64 (M 系列)
+
+    runs-on: ${{ matrix.os }}
 
     steps:
-      # 1. 拉取仓库
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. 安装 Python
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 3. 安装依赖
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install -U pip
+          python -m pip install -r requirements.txt
+          python -m pip install pyinstaller
 
-      # ---------------------------
-      # 4. 平台打包
-      # ---------------------------
-
-      # Windows
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
+      - name: Build app
         run: |
-          pyinstaller --onefile --add-data "web;web" --icon=icon.ico api/FileMind.py
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            pyinstaller --onefile --add-data "web;web" --icon=icon.ico api/FileMind.py
 
-      # macOS
-      - name: Build (macOS)
-        if: runner.os == 'macOS'
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            pyinstaller --onefile --add-data "web:web" api/FileMind.py
+
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            pyinstaller --onefile --add-data "web:web" --icon=icon.icns api/FileMind.py
+          fi
+
+      - name: Rename output with version
         run: |
-          pyinstaller --onefile --add-data "web:web" --icon=icon.icns api/FileMind.py
+          mkdir output
+          for f in dist/*; do
+            base=$(basename "$f")
+            ext=""
+            if [[ "$base" == *.exe ]]; then ext=".exe"; fi
 
-      # Linux
-      - name: Build (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          pyinstaller --onefile --add-data "web:web" api/FileMind.py
+            mv "$f" "output/FileMind-${{ runner.os }}-${{ runner.arch }}-${VERSION}${ext}"
+          done
 
-      # ---------------------------
-      # 5. 上传输出结果
-      # ---------------------------
-      - name: Upload Artifacts
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FileMind-${{ runner.os }}
-          path: dist/
+          name: FileMind-${{ runner.os }}-${{ runner.arch }}-${{ env.VERSION }}
+          path: output/*
