@@ -3,26 +3,22 @@ name: Build FileMind
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - "v*"        # 只有推送 tag 时触发发布
+  workflow_dispatch:  # 手动触发（不会创建 Release）
+
+permissions:
+  contents: write    # 必须：允许创建 Release
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            arch: x86_64
-
-          - os: ubuntu-latest
-            arch: x86_64
-
-          - os: macos-13     # Intel Mac
-            arch: x86_64
-
-          - os: macos-14     # ARM Mac (M1/M2/M3)
-            arch: arm64
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest-small    # Intel x86_64
+          - macos-latest-large    # ARM64 (M 系列)
 
     runs-on: ${{ matrix.os }}
 
@@ -30,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ---- 提取版本号（Bash 通用） ----
+      # -------- Version Extract --------
       - name: Extract Version
         shell: bash
         run: |
@@ -41,13 +37,13 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
-      # ---- 安装 Python ----
+      # -------- Setup Python --------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # ---- 安装依赖 ----
+      # -------- Install Dependencies --------
       - name: Install dependencies
         shell: bash
         run: |
@@ -55,45 +51,43 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install pyinstaller
 
-      # ---- 构建 ----
+      # -------- Build Executables --------
       - name: Build app
         shell: bash
         run: |
           OS="${{ runner.os }}"
-
           if [[ "$OS" == "Windows" ]]; then
             pyinstaller --onefile --add-data "web;web" --icon=icon.ico api/FileMind.py
-
           elif [[ "$OS" == "Linux" ]]; then
             pyinstaller --onefile --add-data "web:web" api/FileMind.py
-
           elif [[ "$OS" == "macOS" ]]; then
             pyinstaller --onefile --add-data "web:web" --icon=icon.icns api/FileMind.py
           fi
 
-      # ---- 重命名产物 ----
+      # -------- Rename Outputs --------
       - name: Rename output with version
         shell: bash
         run: |
           mkdir output
+          VERSION=${{ env.VERSION }}
           for f in dist/*; do
             base=$(basename "$f")
             ext=""
             [[ "$base" == *.exe ]] && ext=".exe"
-
-            mv "$f" "output/FileMind-${{ matrix.os }}-${{ matrix.arch }}-${VERSION}${ext}"
+            mv "$f" "output/FileMind-${{ runner.os }}-${{ runner.arch }}-${VERSION}${ext}"
           done
 
-      # ---- 上传 artifact ----
+      # -------- Upload as Artifacts --------
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FileMind-${{ matrix.os }}-${{ matrix.arch }}-${{ env.VERSION }}
+          name: FileMind-${{ runner.os }}-${{ runner.arch }}-${{ env.VERSION }}
           path: output/*
 
-  # ---- 创建 Release 并上传所有平台产物 ----
+  # -------- Release Job (ONLY when tag pushed) --------
   release:
     needs: build
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
     steps:
