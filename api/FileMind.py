@@ -51,7 +51,9 @@ def build_markmap_tree(root_path):
                 lines.append(f"{indent}- <a href='#' data-path='{abs_path}' data-type='file'>{display}</a>")
 
     walk(root_path, 1)
-    return "\n".join(lines)
+     # 添加 YAML 头
+    yaml_header = "---\nmarkmap:\n  initialExpandLevel: 2\n---\n\n"
+    return yaml_header + "\n".join(lines)
 
 # ------------------- API -------------------
 ROOT_FOLDER = os.getcwd()
