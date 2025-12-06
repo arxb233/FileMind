@@ -8,9 +8,13 @@ import logging
 from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
-# ------------------- 隐藏 Flask/werkzeug 日志 -------------------
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)  # 只显示错误
+
+def filter_development_warning(record):
+    msg = record.getMessage()
+    return not (msg.startswith("WARNING: This is a development server") or 
+                "Do not use it in a production deployment" in msg)
+
+logging.getLogger("werkzeug").addFilter(filter_development_warning)
 
 # ------------------- 工具函数 -------------------
 def get_resource_path(rel_path):
